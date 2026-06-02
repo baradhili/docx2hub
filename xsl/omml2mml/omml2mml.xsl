@@ -2345,7 +2345,6 @@
             <xsl:otherwise>italic</xsl:otherwise>
           </xsl:choose>
         </xsl:variable>
-        <xsl:message select="'#####', $sTokenType, $nor"></xsl:message>
         <!-- Writing of attributes begins here -->
         <xsl:choose>
           <!-- Don't write mathvariant for operators unless they want to be normal -->
@@ -2546,7 +2545,6 @@
               <xsl:otherwise>0</xsl:otherwise>
             </xsl:choose>
           </xsl:variable>
-          <xsl:message select="'#####', $sToParse, $nor"></xsl:message>
           <xsl:choose>
             <!-- Case I: The string begins with neither a number, nor an operator -->
             <xsl:when test="$fNumAtPos1='0' and $fOperAtPos1='0'">
