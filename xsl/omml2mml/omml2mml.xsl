@@ -2345,7 +2345,7 @@
             <xsl:otherwise>italic</xsl:otherwise>
           </xsl:choose>
         </xsl:variable>
-
+        <xsl:message select="'#####', $sTokenType, $nor"></xsl:message>
         <!-- Writing of attributes begins here -->
         <xsl:choose>
           <!-- Don't write mathvariant for operators unless they want to be normal -->
@@ -2546,8 +2546,8 @@
               <xsl:otherwise>0</xsl:otherwise>
             </xsl:choose>
           </xsl:variable>
+          <xsl:message select="'#####', $sToParse, $nor"></xsl:message>
           <xsl:choose>
-
             <!-- Case I: The string begins with neither a number, nor an operator -->
             <xsl:when test="$fNumAtPos1='0' and $fOperAtPos1='0'">
               <mml:mi>
@@ -2568,14 +2568,18 @@
                 <xsl:with-param name="align" select="$align"/>
               </xsl:call-template>
             </xsl:when>
-
-            <!-- Case II: There is an operator at position 1 -->
+            <!-- Case II: There is an operator at position 1. -->
             <xsl:when test="$fOperAtPos1='1'">
               <mml:mo>
                 <xsl:call-template name="CreateTokenAttributes">
                   <xsl:with-param name="scr"/>
                   <xsl:with-param name="sty"/>
-                  <xsl:with-param name="nor"/>
+                  <!-- https://mantis.le-tex.de/view.php?id=42471
+                       Keep the mathvariant information for dashes, as it indicates that 
+                       the character is intended to be a textual hyphen or a dash. -->
+                  <xsl:with-param name="nor" select="if(matches($sToParse, '^\p{Pd}') and $nor eq 'on') 
+                                                     then $nor 
+                                                     else ()"/>
                   <xsl:with-param name="sTokenType" select="'mo'"/>
                 </xsl:call-template>
                 <xsl:value-of select="substring($sToParse,1,1)"/>
