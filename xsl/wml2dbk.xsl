@@ -1343,7 +1343,8 @@
                   <xsl:apply-templates mode="#current"/>
                 </xsl:when>
                 <xsl:when test="$func/@attrib">
-                  <xsl:attribute name="{$func/@attrib}" select="replace($tokens[position() = $func/@value], '&quot;', '')"/>
+                  <xsl:variable name="attrib-value" select="replace($tokens[position() = $func/@value], '&quot;', '')"/>
+                  <xsl:attribute name="{$func/@attrib}" select="if ($func/@attrib = 'linkend') then docx2hub:normalize-name-for-id($attrib-value) else $attrib-value"/>
                   <xsl:if test="$func/@role">
                     <xsl:attribute name="role" select="$func/@role"/>
                   </xsl:if>
@@ -1839,7 +1840,7 @@
     <xsl:apply-templates select="w:sdtContent/*" mode="#current"/>
   </xsl:template>
   
-  <xsl:template match="w:sdt[w:sdtPr/w:alias/@w:val or w:sdtPr/w:citation]
+  <xsl:template match="w:sdt[w:sdtPr/w:alias/@w:val[normalize-space()] or w:sdtPr/w:citation]
                             [not(ancestor::*:CITAVI_XML)]
                             [empty(.//*:CITAVI_XML)]" mode="wml-to-dbk tables">
     <xsl:element name="blockquote">
