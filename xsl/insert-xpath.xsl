@@ -243,9 +243,9 @@
                 select="document($docRels-uri)/rel:Relationships/rel:Relationship[
                                       @Type eq concat('http://schemas.openxmlformats.org/officeDocument/2006/relationships/', $type)
                                     ]">
-                <xsl:if test="doc-available(resolve-uri(concat('_rels/', @Target, '.rels')))">
+                <xsl:if test="doc-available(resolve-uri(concat('_rels/', @Target, '.rels'), $base-dir))">
                   <xsl:apply-templates
-                    select="document(resolve-uri(concat('_rels/', @Target, '.rels')))/rel:Relationships"
+                    select="document(resolve-uri(concat('_rels/', @Target, '.rels'), $base-dir))/rel:Relationships"
                     mode="#current"/>
                 </xsl:if>
               </xsl:for-each>
