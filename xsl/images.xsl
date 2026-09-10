@@ -157,25 +157,50 @@
       <xsl:if test="ancestor-or-self::w:drawing//adec:decorative/@val='1'">
         <xsl:attribute name="condition" select="'artifact'"/>
       </xsl:if>
-      <xsl:apply-templates select="../a:srcRect" mode="wml-to-dbk"/>
-      <imagedata fileref="{if ($rel/@TargetMode = 'External') 
+      <imagedata fileref="{if ($rel/@TargetMode = 'External')
                            then $patched-file-uri
                            else concat('container:word/', $patched-file-uri)}">
         <xsl:if test="$role-value != ''">
           <xsl:attribute name="role" select="$role-value"/>
         </xsl:if>
+        <xsl:if test="self::v:imagedata[@croptop or @cropright or @cropbottom or @cropleft]">
+          <xsl:attribute name="css:crop-top" select="docx2hub:vml-crop-percent(@croptop)"/>
+          <xsl:attribute name="css:crop-right" select="docx2hub:vml-crop-percent(@cropright)"/>
+          <xsl:attribute name="css:crop-bottom" select="docx2hub:vml-crop-percent(@cropbottom)"/>
+          <xsl:attribute name="css:crop-left" select="docx2hub:vml-crop-percent(@cropleft)"/>
+        </xsl:if>
+        <xsl:apply-templates select="../a:srcRect" mode="wml-to-dbk"/>
         <xsl:apply-templates select="ancestor-or-self::w:drawing//wp:extent/@*" mode="wml-to-dbk"/>
       </imagedata>
     </imageobject>
   </xsl:template>
-  
-  <!-- despite ISO 29100-1, which states that the clipping coordinates are always percentages, you’ll find
-    large numbers as in <a:srcRect l="57262" t="34190" r="7344" b="42485"/> 
-    These are called emu. 1 pt = 12700 emu, 1 mm = 36000 emu  -->
-  <xsl:template match="a:srcRect[@l][@t][@r][@b][every $a in (@l, @t, @r, @b) satisfies (matches($a, '^\d+$'))]" mode="wml-to-dbk" priority="2">
-    <xsl:attribute name="css:clip" select="concat('rect(', string-join(for $a in (@t, @r, @b, @l) return  concat(round(number($a) * 0.0015748) * 0.05, 'pt'), ', '), ')')"/>
+
+  <!-- a:srcRect/@l|@t|@r|@b are ST_Percentage in 1000ths of a percent (ISO 29500-1,
+    100000 = 100%): Word crops the source image by these fractions before scaling
+    it to the drawing extent -->
+  <xsl:template match="a:srcRect[(@l, @t, @r, @b)][every $a in (@l, @t, @r, @b) satisfies (matches($a, '^\d+$') and xs:double($a) le 100000)]" mode="wml-to-dbk" priority="2">
+    <xsl:variable name="l" select="xs:double((@l ! string(.), '0')[1]) div 1000"/>
+    <xsl:variable name="t" select="xs:double((@t ! string(.), '0')[1]) div 1000"/>
+    <xsl:variable name="r" select="xs:double((@r ! string(.), '0')[1]) div 1000"/>
+    <xsl:variable name="b" select="xs:double((@b ! string(.), '0')[1]) div 1000"/>
+    <xsl:attribute name="css:crop-top" select="concat($t, '%')"/>
+    <xsl:attribute name="css:crop-right" select="concat($r, '%')"/>
+    <xsl:attribute name="css:crop-bottom" select="concat($b, '%')"/>
+    <xsl:attribute name="css:crop-left" select="concat($l, '%')"/>
   </xsl:template>
-  
+
+  <!-- VML croptop/cropright/cropbottom/cropleft: fractions in 65536ths ("16933f"),
+    plain percentages ("25.5%") or decimals (0.255) -->
+  <xsl:function name="docx2hub:vml-crop-percent" as="xs:string?">
+    <xsl:param name="val" as="xs:string?"/>
+    <xsl:sequence select="if (not(normalize-space($val))) then ()
+                          else if (ends-with($val, 'f'))
+                               then concat(round(xs:double(substring-before($val, 'f')) div 655.36) div 100, '%')
+                          else if (ends-with($val, '%'))
+                               then concat(xs:double(substring-before($val, '%')), '%')
+                          else concat(round(xs:double($val) * 10000) div 100, '%')"/>
+  </xsl:function>
+
   <xsl:template match="a:srcRect[not(@*)]" mode="wml-to-dbk">
     <!-- don’t know whether the empty a:srcRect conveys some meaning; just wanted to get rid of W2D_020 messages -->
   </xsl:template>
