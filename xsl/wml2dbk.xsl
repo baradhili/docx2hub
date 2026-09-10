@@ -738,9 +738,37 @@
       <!-- often the sectPr sits in an empty (removable) para whose w:sectPr is already
            consumed in earlier modes; use the docx2hub:sectPr marker to attach the page
            break to the preceding content para -->
-      <xsl:if test="not(w:pPr/w:sectPr)
-                    and following-sibling::*[1][self::w:p][@docx2hub:sectPr eq 'true'][not(.//w:r except .//w:pgSz//w:r)]">
+      <xsl:variable name="next-sectPr-marker" as="element(w:p)?"
+                    select="following-sibling::*[1][self::w:p][@docx2hub:sectPr eq 'true'][not(.//w:r except .//w:pgSz//w:r)]"/>
+      <xsl:if test="not(w:pPr/w:sectPr) and $next-sectPr-marker">
         <xsl:attribute name="css:page-break-after" select="'always'"/>
+      </xsl:if>
+      <!-- a section boundary also switches headers/footers and possibly the page-number
+           format/restart of the section that begins after the break. Flag the break and
+           surface that section's pgNumType (the add-props pass captured it as
+           css:page-number-* attributes on the sectPr marker paras). -->
+      <xsl:if test="exists(w:pPr/w:sectPr[not(w:type/@w:val eq 'continuous')]) or exists($next-sectPr-marker)">
+        <xsl:attribute name="docx2hub:section-end" select="'true'"/>
+        <!-- the beginning section is governed by the sectPr AFTER the ending one: the
+             next sectPr in the tree, or (when the sectPr was consumed) the next marker
+             para after the one that ends here -->
+        <xsl:variable name="beginning-section-pgnum" as="attribute()*"
+                      select="if (exists(w:pPr/w:sectPr))
+                              then following::w:sectPr[not(parent::w:sectPrChange)][1]/w:pgNumType/(@w:fmt, @w:start)
+                              else $next-sectPr-marker/following-sibling::w:p[@docx2hub:sectPr eq 'true'][1]
+                                   /(@css:page-number-format, @css:page-number-start)"/>
+        <xsl:variable name="beginning-format" as="xs:string?"
+                      select="string(($beginning-section-pgnum[local-name() eq 'fmt'],
+                                      $beginning-section-pgnum[local-name() eq 'page-number-format'])[1])"/>
+        <xsl:variable name="beginning-start" as="xs:string?"
+                      select="string(($beginning-section-pgnum[local-name() eq 'start'],
+                                      $beginning-section-pgnum[local-name() eq 'page-number-start'])[1])"/>
+        <xsl:if test="normalize-space($beginning-format)">
+          <xsl:attribute name="css:page-number-format" select="$beginning-format"/>
+        </xsl:if>
+        <xsl:if test="normalize-space($beginning-start)">
+          <xsl:attribute name="css:page-number-start" select="$beginning-start"/>
+        </xsl:if>
       </xsl:if>
       <xsl:if test="not(@docx2hub:removable='true')">
         <xsl:sequence select="tr:insert-numbering(.)"/>

@@ -612,6 +612,14 @@
       </xsl:if>
       <xsl:if test="exists(descendant::w:sectPr)">
         <xsl:attribute name="docx2hub:sectPr" select="'true'"/>
+        <!-- surface the section's page-number format/restart (w:pgNumType) so that
+             downstream converters can switch page numbering at section boundaries -->
+        <xsl:if test="exists(w:pPr/w:sectPr/w:pgNumType/@w:fmt)">
+          <xsl:attribute name="css:page-number-format" select="string(w:pPr/w:sectPr/w:pgNumType/@w:fmt)"/>
+        </xsl:if>
+        <xsl:if test="exists(w:pPr/w:sectPr/w:pgNumType/@w:start)">
+          <xsl:attribute name="css:page-number-start" select="string(w:pPr/w:sectPr/w:pgNumType/@w:start)"/>
+        </xsl:if>
       </xsl:if>
       <xsl:apply-templates select="@* | * | processing-instruction() | comment()" mode="#current"/>
     </xsl:copy>
