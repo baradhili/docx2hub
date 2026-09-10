@@ -1192,8 +1192,10 @@
         <!-- e.g., v:shape/@fillcolor -->
         <xsl:sequence select="upper-case($val)" />
       </xsl:when>
-      <xsl:when test="matches($val, '[0-9A-F]{6}')">
-        <xsl:sequence select="concat('#', $val)" />
+      <xsl:when test="matches($val, '[0-9A-Fa-f]{6}')">
+        <!-- Word writes @w:color hex values lowercase (e.g. 'ff0000'); without
+             matching the lowercase letters the color was silently dropped -->
+        <xsl:sequence select="concat('#', upper-case($val))" />
       </xsl:when>
       <xsl:when test="$val eq 'cyan'">
         <xsl:sequence select="'#00FFFF'" />
