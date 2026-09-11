@@ -92,6 +92,17 @@
       <xsl:if test="not($hub-version eq '1.0')">
         <xsl:attribute name="css:rule-selection-attribute" select="'role'" />
       </xsl:if>
+      <!-- surface the Normal style's default line spacing (w:line/240, lineRule=auto)
+           for downstream renderers: a "1.5 lines" Normal style spaces the whole
+           document, but the style itself never appears as a css:rule because
+           role-less paragraphs do not reference it -->
+      <xsl:if test="exists(../../w:styles/w:style[w:name/@w:val eq 'Normal']
+                             /w:pPr/w:spacing[@w:lineRule eq 'auto'][@w:line][xs:integer(@w:line) ne 240])">
+        <xsl:attribute name="css:default-line-height"
+                       select="string(../../w:styles/w:style[w:name/@w:val eq 'Normal']
+                                          /w:pPr/w:spacing[@w:lineRule eq 'auto'][@w:line][xs:integer(@w:line) ne 240][1]
+                                          /(@w:line div 240))"/>
+      </xsl:if>
       <!-- surface the first section's page geometry (in pt, from twips) for downstream renderers -->
       <xsl:if test="exists((descendant::w:sectPr)[1]/w:pgSz)">
         <xsl:attribute name="css:page-width"
