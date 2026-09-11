@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <xsl:stylesheet xmlns="http://www.w3.org/2000/svg"
   xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
+  xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"
   xmlns:docx2hub="http://transpect.io/docx2hub"
   xmlns:math="http://www.w3.org/2005/xpath-functions/math"
   xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -107,8 +108,11 @@
   </xsl:template>
   
   <xsl:template match="mc:AlternateContent[$create-svg]
-                                          [mc:Choice/w:drawing/wp:anchor/a:graphic/a:graphicData[not(    wps:wsp/wps:txbx 
-                                                                                                     and wps:wsp/wps:cNvSpPr/@txBox eq '1')]]" 
+                                          [mc:Choice/w:drawing/wp:anchor/a:graphic/a:graphicData[not(    wps:wsp/wps:txbx
+                                                                                                     and wps:wsp/wps:cNvSpPr/@txBox eq '1')]]
+                                          (: embedded pictures (e.g. logos in wpg groups) must go through
+                                             the regular image processing, not the SVG renderer :)
+                                          [not(mc:Choice//pic:pic/pic:blipFill/a:blip)]"
     mode="docx2hub:add-props">
     <xsl:param name="d2s:sec-layout-map" as="map(xs:string, xs:integer?)?" tunnel="yes"/>
     <xsl:variable name="element-name" select="if(parent::w:r|parent::w:p) then 'phrase' else 'sidebar'" as="xs:string"/>

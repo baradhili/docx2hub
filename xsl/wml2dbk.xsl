@@ -738,6 +738,17 @@
       <xsl:if test="w:r[last()][count(*)=1][w:br[@w:type='page']] and count(w:r[count(*)=1][w:br[@w:type='page']]) gt 1">
         <xsl:attribute name="css:page-break-after" select="'always'"/>
       </xsl:if>
+      <!-- a w:p/w:pPr/w:sectPr ends a section; unless it is continuous, a new page begins afterwards -->
+      <xsl:if test="w:pPr/w:sectPr[not(w:type/@w:val eq 'continuous')]">
+        <xsl:attribute name="css:page-break-after" select="'always'"/>
+      </xsl:if>
+      <!-- often the sectPr sits in an empty (removable) para whose w:sectPr is already
+           consumed in earlier modes; use the docx2hub:sectPr marker to attach the page
+           break to the preceding content para -->
+      <xsl:if test="not(w:pPr/w:sectPr)
+                    and following-sibling::*[1][self::w:p][@docx2hub:sectPr eq 'true'][not(.//w:r except .//w:pgSz//w:r)]">
+        <xsl:attribute name="css:page-break-after" select="'always'"/>
+      </xsl:if>
       <xsl:if test="not(@docx2hub:removable='true')">
         <xsl:sequence select="tr:insert-numbering(.)"/>
       </xsl:if>

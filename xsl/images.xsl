@@ -125,16 +125,30 @@
   <xsl:template name="create-imageobject">
     <xsl:param name="image-id" as="xs:string"/>
     <xsl:param name="role-value" select="''" as="xs:string"/>
+    <!-- header/footer parts have their own rels files (e.g. word/_rels/header2.xml.rels),
+         reachable via the @xml:base on w:hdr/w:ftr or on the div that map-props.xsl
+         wraps them in (div role="docx2hub:header"/"docx2hub:footer") -->
+    <xsl:variable name="part-base" as="xs:string?"
+                  select="(ancestor::w:hdr[1]/@xml:base,
+                           ancestor::w:ftr[1]/@xml:base,
+                           ancestor::*[@role eq 'docx2hub:header'][1]/@xml:base,
+                           ancestor::*[@role eq 'docx2hub:footer'][1]/@xml:base)[1]"/>
+    <xsl:variable name="part-rels-doc" as="document-node(element(rel:Relationships))?"
+                  select="if ($part-base and doc-available(replace($part-base, '([^/]+)$', '_rels/$1.rels')))
+                          then document(replace($part-base, '([^/]+)$', '_rels/$1.rels'))
+                          else ()"/>
     <xsl:variable name="rels" as="element(rel:Relationships)"
-      select="if (ancestor::w:footnote) 
+      select="if (ancestor::w:footnote)
               then $root/*/w:footnoteRels/rel:Relationships
-              else 
-                if (ancestor::w:comment) 
-                then $root/*/w:commentRels/rel:Relationships 
-                else 
-                  if (ancestor::w:endnote) 
-                  then $root/*/w:endnoteRels/rel:Relationships 
-                  else 
+              else
+                if (ancestor::w:comment)
+                then $root/*/w:commentRels/rel:Relationships
+                else
+                  if (ancestor::w:endnote)
+                  then $root/*/w:endnoteRels/rel:Relationships
+                  else if (exists($part-rels-doc))
+                  then $part-rels-doc/rel:Relationships
+                  else
                     $root/*/w:docRels/rel:Relationships"/>
     <xsl:variable name="rel" as="element(rel:Relationship)"
       select="$rels/rel:Relationship[@Id = $image-id]"/>

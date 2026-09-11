@@ -92,6 +92,27 @@
       <xsl:if test="not($hub-version eq '1.0')">
         <xsl:attribute name="css:rule-selection-attribute" select="'role'" />
       </xsl:if>
+      <!-- surface the first section's page geometry (in pt, from twips) for downstream renderers -->
+      <xsl:if test="exists((descendant::w:sectPr)[1]/w:pgSz)">
+        <xsl:attribute name="css:page-width"
+                       select="concat((descendant::w:sectPr)[1]/w:pgSz/@w:w div 20, 'pt')"/>
+        <xsl:attribute name="css:page-height"
+                       select="concat((descendant::w:sectPr)[1]/w:pgSz/@w:h div 20, 'pt')"/>
+      </xsl:if>
+      <xsl:if test="exists((descendant::w:sectPr)[1]/w:pgMar)">
+        <xsl:attribute name="css:margin-top"
+                       select="concat((descendant::w:sectPr)[1]/w:pgMar/@w:top div 20, 'pt')"/>
+        <xsl:attribute name="css:margin-right"
+                       select="concat((descendant::w:sectPr)[1]/w:pgMar/@w:right div 20, 'pt')"/>
+        <xsl:attribute name="css:margin-bottom"
+                       select="concat((descendant::w:sectPr)[1]/w:pgMar/@w:bottom div 20, 'pt')"/>
+        <xsl:attribute name="css:margin-left"
+                       select="concat((descendant::w:sectPr)[1]/w:pgMar/@w:left div 20, 'pt')"/>
+        <xsl:attribute name="css:header-distance"
+                       select="concat((descendant::w:sectPr)[1]/w:pgMar/@w:header div 20, 'pt')"/>
+        <xsl:attribute name="css:footer-distance"
+                       select="concat((descendant::w:sectPr)[1]/w:pgMar/@w:footer div 20, 'pt')"/>
+      </xsl:if>
       <info>
         <keywordset role="hub">
           <keyword role="formatting-deviations-only">true</keyword>
@@ -188,9 +209,21 @@
         </xsl:choose>
       </info>
       <xsl:if test="$include-header-and-footer eq 'yes'">
+        <xsl:variable name="header-footer-refs" as="element()*"
+                      select="//w:headerReference|//w:footerReference"/>
         <xsl:for-each-group select="/w:root/w:header/w:hdr|/w:root/w:footer/w:ftr" group-by="parent::*/local-name()">
           <div role="docx2hub:{current-grouping-key()}-spec">
             <xsl:for-each select="current-group()">
+              <!-- sort by the document position of the (first) section reference,
+                   so that the first div of each condition belongs to the first section -->
+              <xsl:sort data-type="number"
+                        select="count($header-footer-refs
+                                      [. &lt;&lt; key('docx2hub:header-footer-ref-by-id',
+                                              /w:root/w:docRels/rel:Relationships/rel:Relationship
+                                                [@Type = ('http://schemas.openxmlformats.org/officeDocument/2006/relationships/header',
+                                                          'http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer')
+                                                 and @Target eq replace(current()/@xml:base, '^.+/(.+)$', '$1')]/@Id
+                                            )[1]])"/>
               <xsl:variable name="header-footer-basename" as="xs:string"
                             select="replace(@xml:base, '^.+/(.+)$', '$1')"/>
               <xsl:variable name="header-footer-id" as="attribute(Id)"
@@ -198,8 +231,9 @@
                                     [@Type = ('http://schemas.openxmlformats.org/officeDocument/2006/relationships/header',
                                               'http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer')
                                      and @Target eq $header-footer-basename]/@Id"/>
-              <div role="docx2hub:{current-grouping-key()}" 
+              <div role="docx2hub:{current-grouping-key()}"
                    condition="{key('docx2hub:header-footer-ref-by-id', $header-footer-id)/@w:type}">
+                <xsl:sequence select="@xml:base"/>
                 <xsl:apply-templates mode="#current"/>
               </div>
             </xsl:for-each>        
