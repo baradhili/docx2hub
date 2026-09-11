@@ -4,7 +4,7 @@ Goal of this fork: surface the Word features that the docx2tex pipeline on the
 `front-page-layout` branch needs to reproduce a styled Word report (reference
 document `HSS_REP.docx`, a Health Support Services template) — page geometry,
 image crops, header/footer parts, section boundaries, section page numbering and
-per-section page margins. 7 commits ahead of master.
+per-section page margins. 9 commits ahead of master (front-page-layout: 7, further-fixes: 2).
 
 - **Surface page geometry, header/footer part rels and section page breaks** (`305578a`):
   the first section's `pgSz`/`pgMar` are emitted as `css:*` attributes on the hub root;
@@ -43,3 +43,12 @@ per-section page margins. 7 commits ahead of master.
   section-break paragraphs (final section via the body-level sectPr), enabling
   per-section `\newgeometry` downstream — e.g. a closing page with a tall custom top
   margin.
+- **Surface the Normal style's default line spacing on the hub root** (`25e0fcb`):
+  a "1.5 lines" Normal style (`w:line=360`, `lineRule=auto`) spaces the whole
+  document, but the style never appears as a css:rule because role-less paragraphs
+  do not reference it. The root now carries `css:default-line-height`
+  (`w:line` div 240) when it differs from single spacing.
+- **Always surface the Normal style's space-after on the hub root** (`1128ced`):
+  `css:default-space-after` defaults to 0pt when the Normal style declares no
+  `w:after` (Word's built-in default) instead of omitting the attribute — the
+  downstream `\parskip` is fully driven by the document.
