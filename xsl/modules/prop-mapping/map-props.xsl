@@ -612,13 +612,20 @@
       </xsl:if>
       <xsl:if test="exists(descendant::w:sectPr)">
         <xsl:attribute name="docx2hub:sectPr" select="'true'"/>
-        <!-- surface the section's page-number format/restart (w:pgNumType) so that
-             downstream converters can switch page numbering at section boundaries -->
+        <!-- surface the section's page-number format/restart (w:pgNumType) and page
+             margins (w:pgMar, twips -> pt) so that downstream converters can switch
+             page numbering and geometry at section boundaries -->
         <xsl:if test="exists(w:pPr/w:sectPr/w:pgNumType/@w:fmt)">
           <xsl:attribute name="css:page-number-format" select="string(w:pPr/w:sectPr/w:pgNumType/@w:fmt)"/>
         </xsl:if>
         <xsl:if test="exists(w:pPr/w:sectPr/w:pgNumType/@w:start)">
           <xsl:attribute name="css:page-number-start" select="string(w:pPr/w:sectPr/w:pgNumType/@w:start)"/>
+        </xsl:if>
+        <xsl:for-each select="w:pPr/w:sectPr/w:pgMar/(@w:top, @w:bottom, @w:left, @w:right)">
+          <xsl:attribute name="css:page-margin-{local-name()}" select="concat(. div 20, 'pt')"/>
+        </xsl:for-each>
+        <xsl:if test="exists(w:pPr/w:sectPr/w:pgMar/@w:header)">
+          <xsl:attribute name="css:page-header-distance" select="concat(w:pPr/w:sectPr/w:pgMar/@w:header div 20, 'pt')"/>
         </xsl:if>
       </xsl:if>
       <xsl:apply-templates select="@* | * | processing-instruction() | comment()" mode="#current"/>

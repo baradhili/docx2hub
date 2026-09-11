@@ -769,6 +769,47 @@
         <xsl:if test="normalize-space($beginning-start)">
           <xsl:attribute name="css:page-number-start" select="$beginning-start"/>
         </xsl:if>
+        <!-- page margins of the section that begins after this break: from the next
+             sectPr marker para (its own pgMar, surfaced as css:page-margin-* by the
+             add-props pass), or — for the final section — the body-level sectPr -->
+        <xsl:variable name="next-geometry-marker" as="element(w:p)?"
+                      select="$next-sectPr-marker/following-sibling::w:p[@docx2hub:sectPr eq 'true'][1]"/>
+        <xsl:variable name="body-sectPr" as="element(w:sectPr)?"
+                      select="following::w:sectPr[not(parent::w:pPr)][not(parent::w:sectPrChange)][1]"/>
+        <xsl:variable name="beginning-margins" as="element()?">
+          <xsl:choose>
+            <xsl:when test="exists($next-geometry-marker/@css:page-margin-top)">
+              <m top="{$next-geometry-marker/@css:page-margin-top}"
+                 bottom="{$next-geometry-marker/@css:page-margin-bottom}"
+                 left="{$next-geometry-marker/@css:page-margin-left}"
+                 right="{$next-geometry-marker/@css:page-margin-right}"
+                 header-distance="{$next-geometry-marker/@css:page-header-distance}"/>
+            </xsl:when>
+            <xsl:when test="exists($body-sectPr/w:pgMar)">
+              <m top="{$body-sectPr/w:pgMar/@w:top div 20}pt"
+                 bottom="{$body-sectPr/w:pgMar/@w:bottom div 20}pt"
+                 left="{$body-sectPr/w:pgMar/@w:left div 20}pt"
+                 right="{$body-sectPr/w:pgMar/@w:right div 20}pt"
+                 header-distance="{$body-sectPr/w:pgMar/@w:header div 20}pt"/>
+            </xsl:when>
+          </xsl:choose>
+        </xsl:variable>
+        <xsl:if test="exists($beginning-margins/@top)">
+          <xsl:attribute name="css:page-margin-top" select="string($beginning-margins/@top)"/>
+        </xsl:if>
+        <xsl:if test="exists($beginning-margins/@bottom)">
+          <xsl:attribute name="css:page-margin-bottom" select="string($beginning-margins/@bottom)"/>
+        </xsl:if>
+        <xsl:if test="exists($beginning-margins/@left)">
+          <xsl:attribute name="css:page-margin-left" select="string($beginning-margins/@left)"/>
+        </xsl:if>
+        <xsl:if test="exists($beginning-margins/@right)">
+          <xsl:attribute name="css:page-margin-right" select="string($beginning-margins/@right)"/>
+        </xsl:if>
+        <xsl:if test="normalize-space(string($beginning-margins/@header-distance))">
+          <xsl:attribute name="css:page-header-distance"
+                         select="concat(replace(string($beginning-margins/@header-distance), '[a-z]+$', ''), 'pt')"/>
+        </xsl:if>
       </xsl:if>
       <xsl:if test="not(@docx2hub:removable='true')">
         <xsl:sequence select="tr:insert-numbering(.)"/>
