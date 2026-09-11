@@ -171,6 +171,16 @@
         </xsl:if>
         <xsl:apply-templates select="../a:srcRect" mode="wml-to-dbk"/>
         <xsl:apply-templates select="ancestor-or-self::w:drawing//wp:extent/@*" mode="wml-to-dbk"/>
+        <!-- anchored (floating) drawings: surface the Word anchor position so
+             downstream renderers can place the image absolutely (inline drawings
+             have no wp:anchor and stay in the text flow) -->
+        <xsl:for-each select="ancestor-or-self::w:drawing/wp:anchor
+                                [wp:positionH/wp:posOffset][wp:positionV/wp:posOffset]">
+          <xsl:attribute name="css:position-left"
+                         select="concat(wp:positionH/wp:posOffset div 12700, 'pt')"/>
+          <xsl:attribute name="css:position-top"
+                         select="concat(wp:positionV/wp:posOffset div 12700, 'pt')"/>
+        </xsl:for-each>
       </imagedata>
     </imageobject>
   </xsl:template>

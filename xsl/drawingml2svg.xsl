@@ -110,9 +110,11 @@
   <xsl:template match="mc:AlternateContent[$create-svg]
                                           [mc:Choice/w:drawing/wp:anchor/a:graphic/a:graphicData[not(    wps:wsp/wps:txbx
                                                                                                      and wps:wsp/wps:cNvSpPr/@txBox eq '1')]]
-                                          (: embedded pictures (e.g. logos in wpg groups) must go through
-                                             the regular image processing, not the SVG renderer :)
-                                          [not(mc:Choice//pic:pic/pic:blipFill/a:blip)]"
+                                          (: embedded pictures (e.g. logos in wpg groups) and shape raster
+                                             fills must go through the regular image processing, not the SVG
+                                             renderer (which would drop the raster) :)
+                                          [not(mc:Choice//pic:pic/pic:blipFill/a:blip)]
+                                          [not(mc:Choice//wps:wsp/wps:spPr/a:blipFill/a:blip)]"
     mode="docx2hub:add-props">
     <xsl:param name="d2s:sec-layout-map" as="map(xs:string, xs:integer?)?" tunnel="yes"/>
     <xsl:variable name="element-name" select="if(parent::w:r|parent::w:p) then 'phrase' else 'sidebar'" as="xs:string"/>
