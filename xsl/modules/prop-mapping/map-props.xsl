@@ -103,6 +103,10 @@
                                           /w:pPr/w:spacing[@w:lineRule eq 'auto'][@w:line][xs:integer(@w:line) ne 240][1]
                                           /(@w:line div 240))"/>
       </xsl:if>
+      <!-- Word's default space-after is 0 when the Normal style does not declare one -->
+      <xsl:attribute name="css:default-space-after"
+                     select="concat((((../../w:styles/w:style[w:name/@w:val eq 'Normal']
+                                          /w:pPr/w:spacing)[1]/@w:after, 0)[1]) div 20, 'pt')"/>
       <!-- surface the first section's page geometry (in pt, from twips) for downstream renderers -->
       <xsl:if test="exists((descendant::w:sectPr)[1]/w:pgSz)">
         <xsl:attribute name="css:page-width"
