@@ -118,14 +118,55 @@
     mode="docx2hub:add-props">
     <xsl:param name="d2s:sec-layout-map" as="map(xs:string, xs:integer?)?" tunnel="yes"/>
     <xsl:variable name="element-name" select="if(parent::w:r|parent::w:p) then 'phrase' else 'sidebar'" as="xs:string"/>
-    <xsl:apply-templates select="mc:Choice//a:graphic" mode="d2s:default">
-      <xsl:with-param name="d2s:sec-layout-map" select="($d2s:sec-layout-map, $d2s:sec-layout-map-fallback)[1]" 
-                      as="map(xs:string, xs:integer?)" tunnel="yes"/>
-    </xsl:apply-templates>
+    <xsl:variable name="anchored-position" as="element(wp:anchor)?"
+                  select=".//wp:anchor[wp:positionH/wp:posOffset[. castable as xs:integer]]
+                                 [wp:positionV/wp:posOffset[. castable as xs:integer]][1]"/>
+    <xsl:variable name="d2s-result" as="element(svg:svg)">
+      <xsl:apply-templates select="mc:Choice//a:graphic" mode="d2s:default">
+        <xsl:with-param name="d2s:sec-layout-map" select="($d2s:sec-layout-map, $d2s:sec-layout-map-fallback)[1]" 
+                        as="map(xs:string, xs:integer?)" tunnel="yes"/>
+      </xsl:apply-templates>
+    </xsl:variable>
+    <!-- remember the anchor position/extent on the converted svg so downstream
+         renderers can place anchored vector art absolutely -->
+    <xsl:for-each select="$d2s-result">
+      <xsl:copy>
+        <xsl:copy-of select="@*"/>
+        <xsl:for-each select="$anchored-position">
+          <xsl:attribute name="css:position-left"
+                         select="concat(xs:integer(wp:positionH/wp:posOffset) div 12700, 'pt')"
+                         namespace="http://www.w3.org/1996/css"/>
+          <xsl:attribute name="css:position-top"
+                         select="concat(xs:integer(wp:positionV/wp:posOffset) div 12700, 'pt')"
+                         namespace="http://www.w3.org/1996/css"/>
+          <xsl:if test="wp:extent/@cx[. castable as xs:integer]">
+            <xsl:attribute name="css:width" select="concat(xs:integer(wp:extent/@cx) div 12700, 'pt')"
+                           namespace="http://www.w3.org/1996/css"/>
+            <xsl:attribute name="css:height" select="concat(xs:integer(wp:extent/@cy) div 12700, 'pt')"
+                           namespace="http://www.w3.org/1996/css"/>
+          </xsl:if>
+        </xsl:for-each>
+        <xsl:copy-of select="node()"/>
+      </xsl:copy>
+    </xsl:for-each>
   </xsl:template>
   
-  <xsl:template match="svg:svg" mode="wml-to-dbk" xmlns="http://docbook.org/ns/docbook">
+  <xsl:template match="svg:svg" mode="wml-to-dbk" xmlns="http://docbook.org/ns/docbook"
+                xmlns:css="http://www.w3.org/1996/css">
     <inlinemediaobject><imageobject><imagedata>
+      <!-- anchored drawings: keep the anchor position and extent so downstream
+           renderers can place the converted vector art absolutely -->
+      <xsl:for-each select="ancestor::w:drawing/wp:anchor
+                             [wp:positionH/wp:posOffset][wp:positionV/wp:posOffset][wp:extent][1]">
+        <xsl:attribute name="css:position-left"
+                       select="concat(xs:integer((wp:positionH/wp:posOffset[. castable as xs:integer], 0)[1]) div 12700, 'pt')"/>
+        <xsl:attribute name="css:position-top"
+                       select="concat(xs:integer((wp:positionV/wp:posOffset[. castable as xs:integer], 0)[1]) div 12700, 'pt')"/>
+        <xsl:if test="wp:extent/@cx[. castable as xs:integer]">
+          <xsl:attribute name="css:width" select="concat(xs:integer(wp:extent/@cx) div 12700, 'pt')"/>
+          <xsl:attribute name="css:height" select="concat(xs:integer(wp:extent/@cy) div 12700, 'pt')"/>
+        </xsl:if>
+      </xsl:for-each>
       <xsl:copy-of select="."/>
     </imagedata></imageobject></inlinemediaobject>
   </xsl:template>
@@ -301,11 +342,43 @@ TEMPLATES
           <xsl:copy-of select="."/>
         </xsl:document>
       </xsl:variable>
-      <g transform="{d2s:transform($position-x, $position-y, $center-x, $center-y, $phi, $flip)}">
-        <xsl:attribute name="d2s:min-x" select="$min-local-x"/>
-        <xsl:attribute name="d2s:min-y" select="$min-local-y"/>
-        <xsl:attribute name="d2s:max-x" select="$max-local-x"/>
-        <xsl:attribute name="d2s:max-y" select="$max-local-y"/>
+      <!-- Children of a shape group carry offsets in the group's child coordinate
+           space; map them through the group's chOff/chExt -> ext transform onto
+           the anchor position. Standalone shapes just use the anchor position. -->
+      <xsl:variable name="group-xfrm" as="element(a:xfrm)?"
+                    select="ancestor::wpg:wgp/wpg:grpSpPr/a:xfrm[1]"/>
+      <xsl:variable name="child-off-x" as="xs:integer"
+                    select="xs:integer((for $v in current()/../a:xfrm/a:off/@x[. castable as xs:integer] return $v, 0)[1])"/>
+      <xsl:variable name="child-off-y" as="xs:integer"
+                    select="xs:integer((for $v in current()/../a:xfrm/a:off/@y[. castable as xs:integer] return $v, 0)[1])"/>
+      <xsl:variable name="child-ext-x" as="xs:integer"
+                    select="xs:integer((for $v in current()/../a:xfrm/a:ext/@cx[. castable as xs:integer] return $v, 1)[1])"/>
+      <xsl:variable name="child-ext-y" as="xs:integer"
+                    select="xs:integer((for $v in current()/../a:xfrm/a:ext/@cy[. castable as xs:integer] return $v, 1)[1])"/>
+      <xsl:variable name="shape-position-x" as="xs:integer"
+                    select="if (exists($group-xfrm/a:chExt/@cx) and xs:integer((for $v in $group-xfrm/a:chExt/@cx[. castable as xs:integer] return $v, 1)[1]) gt 0)
+                            then xs:integer($position-x
+                                 + round(($child-off-x - xs:integer((for $v in $group-xfrm/a:chOff/@x[. castable as xs:integer] return $v, 0)[1]))
+                                         * xs:integer((for $v in $group-xfrm/a:ext/@cx[. castable as xs:integer] return $v, 1)[1])
+                                         div xs:integer((for $v in $group-xfrm/a:chExt/@cx[. castable as xs:integer] return $v, 1)[1])))
+                            else $position-x + $child-off-x"/>
+      <xsl:variable name="shape-position-y" as="xs:integer"
+                    select="if (exists($group-xfrm/a:chExt/@cy) and xs:integer((for $v in $group-xfrm/a:chExt/@cy[. castable as xs:integer] return $v, 1)[1]) gt 0)
+                            then xs:integer($position-y
+                                 + round(($child-off-y - xs:integer((for $v in $group-xfrm/a:chOff/@y[. castable as xs:integer] return $v, 0)[1]))
+                                         * xs:integer((for $v in $group-xfrm/a:ext/@cy[. castable as xs:integer] return $v, 1)[1])
+                                         div xs:integer((for $v in $group-xfrm/a:chExt/@cy[. castable as xs:integer] return $v, 1)[1])))
+                            else $position-y + $child-off-y"/>
+      <g transform="{d2s:transform($shape-position-x, $shape-position-y, $center-x, $center-y, $phi, $flip)}">
+        <xsl:attribute name="d2s:min-x" select="$shape-position-x"/>
+        <xsl:attribute name="d2s:min-y" select="$shape-position-y"/>
+        <xsl:attribute name="d2s:max-x" select="$shape-position-x + $child-ext-x"/>
+        <xsl:attribute name="d2s:max-y" select="$shape-position-y + $child-ext-y"/>
+        <!-- solid fills: the blanket stroke-only rendering drops the shape colour -->
+        <xsl:if test="ancestor::wps:spPr/a:solidFill/a:srgbClr/@val">
+          <xsl:attribute name="fill" select="concat('#', ancestor::wps:spPr/a:solidFill/a:srgbClr/@val)"/>
+          <xsl:attribute name="stroke" select="'none'"/>
+        </xsl:if>
         <xsl:apply-templates select="a:pathLst/a:path" mode="d2s:resolve-fmla">
           <!-- those params are exprected from descendant attributes. Not sure whether processing is correct-->
          <xsl:with-param name="xfrm" select="current()/../a:xfrm" as="element(a:xfrm)" tunnel="yes"/>
@@ -410,6 +483,10 @@ TEMPLATES
     
     <!--Pfadpunkte-->
     <xsl:template name="path-pt">
+        <!-- a:pt coordinates live in the path's own coordinate space (a:path
+             @w/@h); map them onto the shape extent (the tunnelled xfrm) before
+             converting EMU to points -->
+        <xsl:param name="xfrm" as="element(a:xfrm)?" tunnel="yes"/>
         <xsl:for-each select="a:pt">
             <xsl:variable name="x" as="xs:integer?">
                 <xsl:apply-templates select="@x" mode="d2s:resolve-fmla"/>
@@ -417,9 +494,13 @@ TEMPLATES
             <xsl:variable name="y" as="xs:integer?">
                 <xsl:apply-templates select="@y" mode="d2s:resolve-fmla"/>
             </xsl:variable>
-            <xsl:value-of select="$x * $d2s:emu2dpt"/>
+            <xsl:variable name="pw" select="xs:integer((for $v in ancestor::a:path[1]/@w[. castable as xs:integer] return $v, 0)[1])" as="xs:integer"/>
+            <xsl:variable name="ph" select="xs:integer((for $v in ancestor::a:path[1]/@h[. castable as xs:integer] return $v, 0)[1])" as="xs:integer"/>
+            <xsl:variable name="cx" select="xs:integer((for $v in ($xfrm/a:ext/@cx[. castable as xs:integer], string($pw)[. castable as xs:integer]) return xs:integer($v))[. gt 0][1])" as="xs:integer"/>
+            <xsl:variable name="cy" select="xs:integer((for $v in ($xfrm/a:ext/@cy[. castable as xs:integer], string($ph)[. castable as xs:integer]) return xs:integer($v))[. gt 0][1])" as="xs:integer"/>
+            <xsl:value-of select="(if ($pw gt 0) then round($x * $cx div $pw) else $x) * $d2s:emu2dpt"/>
             <xsl:text> </xsl:text>
-            <xsl:value-of select="$y * $d2s:emu2dpt"/>
+            <xsl:value-of select="(if ($ph gt 0) then round($y * $cy div $ph) else $y) * $d2s:emu2dpt"/>
             <xsl:text> </xsl:text>
         </xsl:for-each>
     </xsl:template>
